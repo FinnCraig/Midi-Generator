@@ -70,11 +70,16 @@
         <label for="key">Choose Key:</label>
         <select id="key">
             <option value="C">C</option>
+            <option value="C#">C#</option>
             <option value="D">D</option>
+            <option value="D#">D#</option>
             <option value="E">E</option>
             <option value="F">F</option>
+            <option value="F#">F#</option>
             <option value="G">G</option>
+            <option value="G#">G#</option>
             <option value="A">A</option>
+            <option value="A#">A#</option>
             <option value="B">B</option>
         </select>
         <br>
@@ -82,6 +87,13 @@
         <select id="scaleType">
             <option value="major">Major</option>
             <option value="minor">Minor</option>
+        </select>
+        <br>
+        <label for="chordType">Choose Chord Type:</label>
+        <select id="chordType">
+            <option value="triad">Triad</option>
+            <option value="seventh">Seventh</option>
+            <option value="ninth">Ninth</option>
         </select>
         <br>
         <label for="melodyOverlay">Include Melody:</label>
@@ -108,11 +120,16 @@
     <script>
         const scales = {
             'C': {'major': [60, 62, 64, 65, 67, 69, 71], 'minor': [60, 62, 63, 65, 67, 68, 70]},
+            'C#': {'major': [61, 63, 65, 66, 68, 70, 72], 'minor': [61, 63, 64, 66, 68, 69, 71]},
             'D': {'major': [62, 64, 66, 67, 69, 71, 73], 'minor': [62, 64, 65, 67, 69, 70, 72]},
+            'D#': {'major': [63, 65, 67, 68, 70, 72, 74], 'minor': [63, 65, 66, 68, 70, 71, 73]},
             'E': {'major': [64, 66, 68, 69, 71, 73, 75], 'minor': [64, 66, 67, 69, 71, 72, 74]},
             'F': {'major': [65, 67, 69, 70, 72, 74, 76], 'minor': [65, 67, 68, 70, 72, 73, 75]},
+            'F#': {'major': [66, 68, 70, 71, 73, 75, 77], 'minor': [66, 68, 69, 71, 73, 74, 76]},
             'G': {'major': [67, 69, 71, 72, 74, 76, 78], 'minor': [67, 69, 70, 72, 74, 75, 77]},
+            'G#': {'major': [68, 70, 72, 73, 75, 77, 79], 'minor': [68, 70, 71, 73, 75, 76, 78]},
             'A': {'major': [69, 71, 73, 74, 76, 78, 80], 'minor': [69, 71, 72, 74, 76, 77, 79]},
+            'A#': {'major': [70, 72, 74, 75, 77, 79, 81], 'minor': [70, 72, 73, 75, 77, 78, 80]},
             'B': {'major': [71, 73, 75, 76, 78, 80, 82], 'minor': [71, 73, 74, 76, 78, 79, 81]}
         };
 
@@ -126,6 +143,7 @@
         function generateMIDI() {
             const key = document.getElementById('key').value;
             const scaleType = document.getElementById('scaleType').value;
+            const chordType = document.getElementById('chordType').value;
             const melodyOverlay = document.getElementById('melodyOverlay').value;
             const status = document.getElementById('status');
             const downloadLinkChords = document.getElementById('downloadLinkChords');
@@ -152,40 +170,45 @@
                 for (let i = 0; i < totalBars; i++) {
                     let chord;
                     do {
-                        chord = getRandomChord(key, scaleType);
+                        chord = getRandomChord(key, scaleType, chordType);
                     } while (i > 0 && JSON.stringify(chord) === JSON.stringify(chordsData[i - 1]));
                     chordsData.push(chord);
                 }
 
                 // Add chords to track
-                for (let bar = 0; bar < totalBars; bar++) {
-                    const chord = chordsData[bar].map(note => note - 12); // Lower chords by an octave
+                chordsData.forEach((chord, index) => {
                     chord.forEach(note => {
                         chordsTrack.addNote({
                             midi: note,
-                            time: bar * beatsPerBar * 2, // Extend duration to match 16 bars
-                            duration: beatsPerBar * 2, // Duration of each chord
+                            time: index * 2 * beatsPerBar, // Each chord lasts for 2 bars
+                            duration: 2 * beatsPerBar,
                             velocity: 0.8
                         });
                     });
-                }
+                });
 
-                // Add melody if selected
+                // Function to create melody notes in key
+                const getMelodyNotesInKey = (root, scaleType) => {
+                    const rootMidi = scales[root][scaleType];
+                    return rootMidi.map(interval => rootMidi[0] + interval);
+                };
+
+                // Generate melody
                 melody = [];
                 if (melodyOverlay === "yes") {
-                    for (let bar = 0; bar < totalBars; bar++) {
-                        const chord = chordsData[bar];
-                        for (let i = 0; i < beatsPerBar * 2; i++) { // 2 notes per beat, 8 notes per bar
-                            const note = chord[Math.floor(Math.random() * chord.length)];
-                            melody.push({ midi: note - 12, time: bar * beatsPerBar + i * 0.5, duration: 0.5, velocity: 1 });
-                            melodyTrack.addNote({
-                                midi: note - 12,
-                                time: bar * beatsPerBar + i * 0.5,
-                                duration: 0.5,
-                                velocity: 1
-                            });
-                        }
+                    const melodyNotesInKey = getMelodyNotesInKey(key, scaleType);
+                    for (let i = 0; i < totalBeats * 2; i++) { // Adjust to span 16 bars
+                        const note = melodyNotesInKey[Math.floor(Math.random() * melodyNotesInKey.length)];
+                        melody.push({
+                            midi: note - 72,
+                            time: i * 0.5, // Half note duration to span 16 bars
+                            duration: 0.5,
+                            velocity: 1
+                        });
                     }
+                    melody.forEach(note => {
+                        melodyTrack.addNote(note);
+                    });
                 }
 
                 // Create MIDI blob and update download links
@@ -226,9 +249,9 @@
             }).toDestination();
             const flute = new Tone.Sampler({
                 urls: {
-                    "C5": "C5.mp3",
+                    "C2": "C2.mp3",
                 },
-                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                baseUrl: "https://tonejs.github.io/audio/casio/",
             }).toDestination();
 
             await Tone.loaded();
@@ -316,9 +339,9 @@
             melody.forEach(note => {
                 const noteDiv = document.createElement('div');
                 noteDiv.classList.add('note');
-                noteDiv.style.left = `${note.time / totalBeats * 100}%`;
+                noteDiv.style.left = `${note.time / totalBeats * 200}%`;
                 noteDiv.style.top = `${(127 - note.midi) * noteHeight}px`;
-                noteDiv.style.width = `${(note.duration / totalBeats) * 100}%`;
+                noteDiv.style.width = `${(note.duration / totalBeats) * 200}%`;
                 noteDiv.style.height = `${noteHeight}px`;
                 noteDiv.style.backgroundColor = '#44ff44';
                 midiDisplay.appendChild(noteDiv);
