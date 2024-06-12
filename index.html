@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIDI Generator</title>
     <style>
         body {
@@ -62,6 +61,9 @@
             left: 0;
             z-index: 10;
         }
+        .melody-controls {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -100,18 +102,24 @@
         <input type="range" id="spread" min="1" max="4" value="1">
         <br>
         <label for="melodyOverlay">Include Melody:</label>
-        <select id="melodyOverlay">
+        <select id="melodyOverlay" onchange="toggleMelodyControls()">
             <option value="yes">Yes</option>
-            <option value="no">No</option>
+            <option value="no" selected>No</option>
         </select>
         <br>
+        <div class="melody-controls">
+            <label for="melodySpeed">Melody Speed:</label>
+            <input type="range" id="melodySpeed" min="0.1" max="1" step="0.1" value="0.5">
+            <br>
+            <label for="melodyVariation">Melody Variation:</label>
+            <input type="range" id="melodyVariation" min="0.1" max="1" step="0.1" value="0.5">
+        </div>
         <button onclick="generateMIDI()">Generate MIDI</button>
         <br>
         <a id="downloadLinkChords" style="display:none;" download="generated_chords.mid">Download Chords MIDI</a>
         <a id="downloadLinkMelody" style="display:none;" download="generated_melody.mid">Download Melody MIDI</a>
         <br>
-        <button id="playBtn" style="display:none;" onclick="previewMIDI()">Play</button>
-        <button id="pauseBtn" style="display:none;" onclick="pauseMIDI()">Pause</button>
+        <button id="playBtn" style="display:none;" onclick="togglePlayback()">Play</button>
         <div id="status"></div>
         <div id="midiDisplay" style="display:none;">
             <div class="playhead"></div>
@@ -128,17 +136,28 @@
         let activePreview = null;
         let playheadInterval = null;
 
+        function toggleMelodyControls() {
+            const melodyOverlay = document.getElementById('melodyOverlay').value;
+            const melodyControls = document.querySelector('.melody-controls');
+            if (melodyOverlay === 'yes') {
+                melodyControls.style.display = 'block';
+            } else {
+                melodyControls.style.display = 'none';
+            }
+        }
+
         function generateMIDI() {
             const key = document.getElementById('key').value;
             const scaleType = document.getElementById('scaleType').value;
             const noteAmount = parseInt(document.getElementById('noteAmount').value);
             const spread = parseInt(document.getElementById('spread').value);
             const melodyOverlay = document.getElementById('melodyOverlay').value;
+            const melodySpeed = parseFloat(document.getElementById('melodySpeed').value);
+            const melodyVariation = 1 - parseFloat(document.getElementById('melodyVariation').value); // Invert variation
             const status = document.getElementById('status');
             const downloadLinkChords = document.getElementById('downloadLinkChords');
             const downloadLinkMelody = document.getElementById('downloadLinkMelody');
             const playBtn = document.getElementById('playBtn');
-            const pauseBtn = document.getElementById('pauseBtn');
             const midiDisplay = document.getElementById('midiDisplay');
 
             status.innerText = 'Generating MIDI...';
@@ -151,7 +170,7 @@
                 const melodyTrack = midiMelody.addTrack();
 
                 const beatsPerBar = 4;
-                const totalBars = 8;
+                const totalBars = 16;
                 const totalBeats = totalBars * beatsPerBar;
 
                 chordsData = [];
@@ -167,8 +186,8 @@
                     chord.forEach(note => {
                         chordsTrack.addNote({
                             midi: note,
-                            time: index * 2 * beatsPerBar,
-                            duration: 2 * beatsPerBar,
+                            time: index * beatsPerBar,
+                            duration: beatsPerBar,
                             velocity: 0.8
                         });
                     });
@@ -181,17 +200,43 @@
                 melody = [];
                 if (melodyOverlay === "yes") {
                     const melodyNotesInKey = getMelodyNotesInKey(key, scaleType);
-                    const totalMelodyNotes = totalBeats * 2;
-                    for (let i = 0; i < totalMelodyNotes; i++) {
-                        const note = melodyNotesInKey[Math.floor(Math.random() * melodyNotesInKey.length)];
-                        const duration = Math.random() > 0.5 ? 0.5 : 0.25; // Add some variation in note lengths
-                        melody.push({
-                            midi: note,
-                            time: i * duration,
-                            duration: duration,
-                            velocity: 1
-                        });
+                    const totalMelodyNotes = Math.floor(totalBeats / (1 - melodySpeed)); // Calculate number of melody notes based on speed
+                    const durationOptions = [0.5, 0.25];
+
+                    let currentTime = 0;
+                    while (currentTime < totalBeats) {
+                        let note;
+                        if (Math.random() < 0.7) {
+                            const currentChordIndex = Math.floor(currentTime / beatsPerBar);
+                            const currentChord = chordsData[currentChordIndex];
+                            if (currentChord && currentChord.length > 0) {
+                                note = currentChord[Math.floor(Math.random() * currentChord.length)];
+                            } else {
+                                note = melodyNotesInKey[Math.floor(Math.random() * melodyNotesInKey.length)];
+                            }
+                        } else {
+                            note = melodyNotesInKey[Math.floor(Math.random() * melodyNotesInKey.length)];
+                        }
+                        const duration = durationOptions[Math.floor(Math.random() * durationOptions.length)];
+
+                        // Randomize the time increment to create a groove
+                        const minTimeIncrement = (1 - melodySpeed) * 4; // Invert melodySpeed for slower to faster
+                        const maxTimeIncrement = minTimeIncrement + 2; // Ensure it fits within reasonable range
+                        const timeIncrement = Math.max(0.1, (Math.random() * (maxTimeIncrement - minTimeIncrement) + minTimeIncrement) * melodyVariation); // Ensure reasonable bounds
+
+                        if (currentTime + duration <= totalBeats) { // Ensure the note fits within the loop
+                            melody.push({
+                                midi: note,
+                                time: currentTime,
+                                duration: duration,
+                                velocity: 1
+                            });
+                            currentTime += timeIncrement;
+                        } else {
+                            break; // Stop if the next note exceeds the total beats
+                        }
                     }
+
                     melody.forEach(note => {
                         melodyTrack.addNote(note);
                     });
@@ -208,7 +253,7 @@
                 status.innerText = 'MIDI generation complete. Click the links to download your files.';
                 midiDisplay.style.display = 'block';
                 playBtn.style.display = 'block';
-                pauseBtn.style.display = 'block';
+                playBtn.innerText = 'Play';
                 console.log('MIDI generation complete.');
 
                 updateMIDIDisplay();
@@ -218,83 +263,92 @@
             }
         }
 
-        async function previewMIDI() {
-            if (activePreview) {
-                activePreview.dispose();
-                Tone.Transport.stop();
-                clearInterval(playheadInterval);
+        async function togglePlayback() {
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
             }
 
-            const piano = new Tone.Sampler({
-                urls: {
-                    "C5": "C5.mp3",
-                },
-                baseUrl: "https://tonejs.github.io/audio/salamander/",
-            }).toDestination();
-            const flute = new Tone.Sampler({
-                urls: {
-                    "C2": "C2.mp3",
-                },
-                baseUrl: "https://tonejs.github.io/audio/casio/",
-            }).toDestination();
-
-            await Tone.loaded();
-            const now = Tone.now();
-
-            activePreview = new Tone.Part((time, note) => {
-                if (note.type === 'chord') {
-                    piano.triggerAttackRelease(Tone.Midi(note.midi).toFrequency(), note.duration, time);
-                } else {
-                    flute.triggerAttackRelease(Tone.Midi(note.midi).toFrequency(), note.duration, time);
-                }
-            }, []);
-
-            chordsData.forEach((chord, index) => {
-                chord.forEach(note => {
-                    activePreview.add(now + index * 4, {
-                        midi: note - 12,
-                        duration: "1m",
-                        type: 'chord'
-                    });
-                });
-            });
-
-            if (document.getElementById('melodyOverlay').value === 'yes') {
-                melody.forEach(note => {
-                    activePreview.add(now + note.time, {
-                        midi: note.midi,
-                        duration: note.duration,
-                        type: 'melody'
-                    });
-                });
-            }
-
-            activePreview.start(now);
-            Tone.Transport.start();
-
-            const playhead = document.querySelector('.playhead');
-            const duration = 32;
-            let startTime = Date.now();
-
-            playheadInterval = setInterval(() => {
-                const elapsed = (Date.now() - startTime) / 1000;
-                const progress = elapsed / duration;
-                playhead.style.left = `${progress * 100}%`;
-
-                if (progress >= 1) {
-                    clearInterval(playheadInterval);
-                    playhead.style.left = '0%';
-                }
-            }, 30);
-        }
-
-        function pauseMIDI() {
             if (activePreview) {
                 activePreview.stop();
+                activePreview.dispose();
+                activePreview = null;
                 Tone.Transport.stop();
+                Tone.Transport.cancel();
                 clearInterval(playheadInterval);
+                document.getElementById('playBtn').innerText = 'Play';
+            } else {
+                if (activePreview) {
+                    activePreview.stop();
+                    activePreview.dispose();
+                    activePreview = null;
+                }
+                Tone.Transport.stop();
+                Tone.Transport.cancel();
+                clearInterval(playheadInterval);
+
+                const piano = new Tone.Sampler({
+                    urls: {
+                        "C5": "c4.mp3",
+                    },
+                    baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
+                }).toDestination();
+                const flute = new Tone.Sampler({
+                    urls: {
+                        "C4": "c2.mp3",
+                    },
+                    baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
+                }).toDestination();
+
+                await Tone.loaded();
+                const now = Tone.now();
+
+                activePreview = new Tone.Part((time, note) => {
+                    if (note.type === 'chord') {
+                        piano.triggerAttackRelease(Tone.Midi(note.midi).toFrequency(), note.duration, time);
+                    } else {
+                        flute.triggerAttackRelease(Tone.Midi(note.midi).toFrequency(), note.duration, time);
+                    }
+                }, []);
+
+                chordsData.forEach((chord, index) => {
+                    chord.forEach(note => {
+                        activePreview.add(now + index * 4, {
+                            midi: note - 12,
+                            duration: "1m",
+                            type: 'chord'
+                        });
+                    });
+                });
+
+                if (document.getElementById('melodyOverlay').value === 'yes') {
+                    melody.forEach(note => {
+                        activePreview.add(now + note.time, {
+                            midi: note.midi,
+                            duration: note.duration,
+                            type: 'melody'
+                        });
+                    });
+                }
+
+                activePreview.start(now);
+                Tone.Transport.start();
+
                 const playhead = document.querySelector('.playhead');
-                playhead.style.left = '0%';
+                const duration = 64; // Adjusted to match 16 bars
+                let startTime = Date.now();
+
+                playheadInterval = setInterval(() => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const progress = elapsed / duration;
+                    playhead.style.left = `${progress * 100}%`;
+
+                    if (progress >= 1) {
+                        clearInterval(playheadInterval);
+                        playhead.style.left = '0%';
+                    }
+                }, 30);
+
+                document.getElementById('playBtn').innerText = 'Stop';
             }
         }
 
@@ -303,7 +357,7 @@
             midiDisplay.innerHTML = '<div class="playhead"></div>'; 
 
             const noteHeight = midiDisplay.clientHeight / 128;
-            const totalBars = 16;
+            const totalBars = 16; // Adjusted to 16 bars
             const beatsPerBar = 4;
             const totalBeats = totalBars * beatsPerBar;
 
@@ -311,9 +365,9 @@
                 chord.forEach(note => {
                     const noteDiv = document.createElement('div');
                     noteDiv.classList.add('note');
-                    noteDiv.style.left = `${(bar * beatsPerBar * 2) / totalBeats * 100}%`;
+                    noteDiv.style.left = `${(bar * beatsPerBar) / totalBeats * 100}%`;
                     noteDiv.style.top = `${(127 - note) * noteHeight}px`;
-                    noteDiv.style.width = `${(beatsPerBar * 2 / totalBeats) * 100}%`;
+                    noteDiv.style.width = `${beatsPerBar / totalBeats * 100}%`;
                     noteDiv.style.height = `${noteHeight}px`;
                     midiDisplay.appendChild(noteDiv);
                 });
@@ -322,9 +376,9 @@
             melody.forEach(note => {
                 const noteDiv = document.createElement('div');
                 noteDiv.classList.add('note');
-                noteDiv.style.left = `${note.time / totalBeats * 200}%`;
+                noteDiv.style.left = `${note.time / totalBeats * 100}%`;
                 noteDiv.style.top = `${(127 - note.midi) * noteHeight}px`;
-                noteDiv.style.width = `${(note.duration / totalBeats) * 200}%`;
+                noteDiv.style.width = `${note.duration / totalBeats * 100}%`;
                 noteDiv.style.height = `${noteHeight}px`;
                 noteDiv.style.backgroundColor = '#44ff44';
                 midiDisplay.appendChild(noteDiv);
