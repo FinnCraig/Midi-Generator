@@ -163,11 +163,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.35/Tone.min.js"></script>
     <script src="chords.js"></script>
     <script>
+      // define samples:
+      const piano = new Tone.Sampler({
+        urls: {
+          C5: "c4.mp3",
+        },
+        baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
+      }).toDestination();
+      const flute = new Tone.Sampler({
+        urls: {
+          C4: "c2.mp3",
+        },
+        baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
+      }).toDestination();
+
       let chordsData = [];
       let melody = [];
       let midiChords;
       let midiMelody;
-      let activePreview = null;
+      let collection = null;
       let playheadInterval = null;
 
       function toggleMelodyControls() {
@@ -332,69 +346,40 @@
         }
       }
 
+      collection = new Tone.Part((time, note) => {
+        if (note.type === "chord") {
+          piano.triggerAttackRelease(
+            Tone.Midi(note.midi).toFrequency(),
+            note.duration,
+            time
+          );
+        } else {
+          flute.triggerAttackRelease(
+            Tone.Midi(note.midi).toFrequency(),
+            note.duration,
+            time
+          );
+        }
+      }, []);
+
       async function togglePlayback() {
         //docs: https://tonejs.github.io/docs/14.8.35/
-        console.log(activePreview);
-        console.log(Tone.context.state);
-        if (Tone.context.state !== "running") {
-          await Tone.start();
-        }
+        await Tone.loaded();
+        await Tone.start();
 
-        // if there is an active preview this means that we have started the midi playback and we need to stop
-        if (activePreview) {
-          activePreview.stop();
-          activePreview.dispose();
-
-          // this removes the stop functionality
-          activePreview = null;
-          Tone.Transport.stop();
+        if (collection.state === "started") {
+          collection.stop();
           Tone.Transport.cancel();
-          // we need to somehow reset the state to suspeneded
-
           // this resets the playhead to the start
+          const playhead = document.querySelector(".playhead");
+          playhead.style.left = "0%";
           clearInterval(playheadInterval);
           document.getElementById("playBtn").innerText = "Play";
-        }
-        // if an active preview is not set (when first hitting play, or restarting)
-        else {
-          Tone.Transport.stop();
-          Tone.Transport.cancel();
-          clearInterval(playheadInterval);
-
-          const piano = new Tone.Sampler({
-            urls: {
-              C5: "c4.mp3",
-            },
-            baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
-          }).toDestination();
-          const flute = new Tone.Sampler({
-            urls: {
-              C4: "c2.mp3",
-            },
-            baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
-          }).toDestination();
-
-          await Tone.loaded();
+        } else {
           const now = Tone.now();
-          activePreview = new Tone.Part((time, note) => {
-            if (note.type === "chord") {
-              piano.triggerAttackRelease(
-                Tone.Midi(note.midi).toFrequency(),
-                note.duration,
-                time
-              );
-            } else {
-              flute.triggerAttackRelease(
-                Tone.Midi(note.midi).toFrequency(),
-                note.duration,
-                time
-              );
-            }
-          }, []);
-
           chordsData.forEach((chord, index) => {
             chord.forEach((note) => {
-              activePreview.add(now + index * 4, {
+              collection.add(now + index * 4, {
                 midi: note - 12,
                 duration: "1m",
                 type: "chord",
@@ -404,18 +389,19 @@
 
           if (document.getElementById("melodyOverlay").value === "yes") {
             melody.forEach((note) => {
-              activePreview.add(now + note.time, {
+              collection.add(now + note.time, {
                 midi: note.midi,
                 duration: note.duration,
                 type: "melody",
               });
             });
           }
-
-          activePreview.start(now);
+          collection.start();
           Tone.Transport.start();
 
           const playhead = document.querySelector(".playhead");
+          playhead.style.left = "0%";
+
           const duration = 64; // Adjusted to match 16 bars
           let startTime = Date.now();
 
@@ -426,7 +412,6 @@
 
             if (progress >= 1) {
               clearInterval(playheadInterval);
-              playhead.style.left = "0%";
             }
           }, 30);
 
