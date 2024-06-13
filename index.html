@@ -1,392 +1,471 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MIDI Generator</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-image: url("background.gif");
-            background-size: cover;
-            background-repeat: none;
-            color: #ffffff;
-            text-align: center;
-            padding: 50px;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background-color: rgba(0,0,0,0.5);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        select, button, a, input[type="range"] {
-            display: block;
-            margin: 10px auto;
-            padding: 10px;
-            font-size: 16px;
-            background-color: #f50000;
-            color: #ffffff;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            text-align: center;
-        }
-        select:focus, button:focus, a:focus, input[type="range"]:focus {
-            outline: none;
-            box-shadow: 0 0 5px #ffffff;
-        }
-        #status {
-            margin-top: 20px;
-        }
-        #midiDisplay {
-            width: 100%;
-            height: 300px;
-            background-color: #222;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid #444;
-            margin-top: 20px;
-        }
-        .note {
-            position: absolute;
-            background-color: #ff4444;
-            border-radius: 3px;
-        }
-        .playhead {
-            position: absolute;
-            width: 2px;
-            height: 100%;
-            background-color: #ffffff;
-            top: 0;
-            left: 0;
-            z-index: 10;
-        }
-        .melody-controls {
-            display: none;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        background-image: url("background.gif");
+        background-size: cover;
+        background-repeat: none;
+        color: #ffffff;
+        text-align: center;
+        padding: 50px;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      select,
+      button,
+      a,
+      input[type="range"] {
+        display: block;
+        margin: 10px auto;
+        padding: 10px;
+        font-size: 16px;
+        background-color: #f50000;
+        color: #ffffff;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+        text-align: center;
+      }
+      select:focus,
+      button:focus,
+      a:focus,
+      input[type="range"]:focus {
+        outline: none;
+        box-shadow: 0 0 5px #ffffff;
+      }
+      #status {
+        margin-top: 20px;
+      }
+      #midiDisplay {
+        width: 100%;
+        height: 300px;
+        background-color: #222;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #444;
+        margin-top: 20px;
+      }
+      .note {
+        position: absolute;
+        background-color: #ff4444;
+        border-radius: 3px;
+      }
+      .playhead {
+        position: absolute;
+        width: 2px;
+        height: 100%;
+        background-color: #ffffff;
+        top: 0;
+        left: 0;
+        z-index: 10;
+      }
+      .melody-controls {
+        display: none;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1>MIDI Generator</h1>
-        <label for="key">Choose Key:</label>
-        <select id="key">
-            <option value="C">C</option>
-            <option value="C#">C#</option>
-            <option value="D">D</option>
-            <option value="D#">D#</option>
-            <option value="E">E</option>
-            <option value="F">F</option>
-            <option value="F#">F#</option>
-            <option value="G">G</option>
-            <option value="G#">G#</option>
-            <option value="A">A</option>
-            <option value="A#">A#</option>
-            <option value="B">B</option>
-        </select>
-        <br>
-        <label for="scaleType">Choose Scale Type:</label>
-        <select id="scaleType">
-            <option value="major">Major</option>
-            <option value="minor">Minor</option>
-        </select>
-        <br>
-        <label for="noteAmount">Number of Notes in Chord:</label>
-        <select id="noteAmount">
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-        </select>
-        <br>
-        <label for="spread">Chord Spread:</label>
-        <input type="range" id="spread" min="1" max="4" value="1">
-        <br>
-        <label for="melodyOverlay">Include Melody:</label>
-        <select id="melodyOverlay" onchange="toggleMelodyControls()">
-            <option value="yes">Yes</option>
-            <option value="no" selected>No</option>
-        </select>
-        <br>
-        <div class="melody-controls">
-            <label for="melodySpeed">Melody Speed:</label>
-            <input type="range" id="melodySpeed" min="0.1" max="1" step="0.1" value="0.5">
-            <br>
-            <label for="melodyVariation">Melody Variation:</label>
-            <input type="range" id="melodyVariation" min="0.1" max="1" step="0.1" value="0.5">
-        </div>
-        <button onclick="generateMIDI()">Generate MIDI</button>
-        <br>
-        <a id="downloadLinkChords" style="display:none;" download="generated_chords.mid">Download Chords MIDI</a>
-        <a id="downloadLinkMelody" style="display:none;" download="generated_melody.mid">Download Melody MIDI</a>
-        <br>
-        <button id="playBtn" style="display:none;" onclick="togglePlayback()">Play</button>
-        <div id="status"></div>
-        <div id="midiDisplay" style="display:none;">
-            <div class="playhead"></div>
-        </div>
+      <h1>MIDI Generator</h1>
+      <label for="key">Choose Key:</label>
+      <select id="key">
+        <option value="C">C</option>
+        <option value="C#">C#</option>
+        <option value="D">D</option>
+        <option value="D#">D#</option>
+        <option value="E">E</option>
+        <option value="F">F</option>
+        <option value="F#">F#</option>
+        <option value="G">G</option>
+        <option value="G#">G#</option>
+        <option value="A">A</option>
+        <option value="A#">A#</option>
+        <option value="B">B</option>
+      </select>
+      <br />
+      <label for="scaleType">Choose Scale Type:</label>
+      <select id="scaleType">
+        <option value="major">Major</option>
+        <option value="minor">Minor</option>
+      </select>
+      <br />
+      <label for="noteAmount">Number of Notes in Chord:</label>
+      <select id="noteAmount">
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+      <br />
+      <label for="spread">Chord Spread:</label>
+      <input type="range" id="spread" min="1" max="4" value="1" />
+      <br />
+      <label for="melodyOverlay">Include Melody:</label>
+      <select id="melodyOverlay" onchange="toggleMelodyControls()">
+        <option value="yes">Yes</option>
+        <option value="no" selected>No</option>
+      </select>
+      <br />
+      <div class="melody-controls">
+        <label for="melodySpeed">Melody Speed:</label>
+        <input
+          type="range"
+          id="melodySpeed"
+          min="0.1"
+          max="1"
+          step="0.1"
+          value="0.5"
+        />
+        <br />
+        <label for="melodyVariation">Melody Variation:</label>
+        <input
+          type="range"
+          id="melodyVariation"
+          min="0.1"
+          max="1"
+          step="0.1"
+          value="0.5"
+        />
+      </div>
+      <button onclick="generateMIDI()">Generate MIDI</button>
+      <br />
+      <a
+        id="downloadLinkChords"
+        style="display: none"
+        download="generated_chords.mid"
+        >Download Chords MIDI</a
+      >
+      <a
+        id="downloadLinkMelody"
+        style="display: none"
+        download="generated_melody.mid"
+        >Download Melody MIDI</a
+      >
+      <br />
+      <button id="playBtn" style="display: none" onclick="togglePlayback()">
+        Play
+      </button>
+      <div id="status"></div>
+      <div id="midiDisplay" style="display: none">
+        <div class="playhead"></div>
+      </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.35/Tone.min.js"></script>
     <script src="chords.js"></script>
     <script>
-        let chordsData = [];
-        let melody = [];
-        let midiChords;
-        let midiMelody;
-        let activePreview = null;
-        let playheadInterval = null;
+      let chordsData = [];
+      let melody = [];
+      let midiChords;
+      let midiMelody;
+      let activePreview = null;
+      let playheadInterval = null;
 
-        function toggleMelodyControls() {
-            const melodyOverlay = document.getElementById('melodyOverlay').value;
-            const melodyControls = document.querySelector('.melody-controls');
-            if (melodyOverlay === 'yes') {
-                melodyControls.style.display = 'block';
-            } else {
-                melodyControls.style.display = 'none';
-            }
+      function toggleMelodyControls() {
+        const melodyOverlay = document.getElementById("melodyOverlay").value;
+        const melodyControls = document.querySelector(".melody-controls");
+        if (melodyOverlay === "yes") {
+          melodyControls.style.display = "block";
+        } else {
+          melodyControls.style.display = "none";
         }
+      }
 
-        function generateMIDI() {
-            const key = document.getElementById('key').value;
-            const scaleType = document.getElementById('scaleType').value;
-            const noteAmount = parseInt(document.getElementById('noteAmount').value);
-            const spread = parseInt(document.getElementById('spread').value);
-            const melodyOverlay = document.getElementById('melodyOverlay').value;
-            const melodySpeed = parseFloat(document.getElementById('melodySpeed').value);
-            const melodyVariation = 1 - parseFloat(document.getElementById('melodyVariation').value); // Invert variation
-            const status = document.getElementById('status');
-            const downloadLinkChords = document.getElementById('downloadLinkChords');
-            const downloadLinkMelody = document.getElementById('downloadLinkMelody');
-            const playBtn = document.getElementById('playBtn');
-            const midiDisplay = document.getElementById('midiDisplay');
+      function generateMIDI() {
+        const key = document.getElementById("key").value;
+        const scaleType = document.getElementById("scaleType").value;
+        const noteAmount = parseInt(
+          document.getElementById("noteAmount").value
+        );
+        const spread = parseInt(document.getElementById("spread").value);
+        const melodyOverlay = document.getElementById("melodyOverlay").value;
+        const melodySpeed = parseFloat(
+          document.getElementById("melodySpeed").value
+        );
+        const melodyVariation =
+          1 - parseFloat(document.getElementById("melodyVariation").value); // Invert variation
+        const status = document.getElementById("status");
+        const downloadLinkChords =
+          document.getElementById("downloadLinkChords");
+        const downloadLinkMelody =
+          document.getElementById("downloadLinkMelody");
+        const playBtn = document.getElementById("playBtn");
+        const midiDisplay = document.getElementById("midiDisplay");
 
-            status.innerText = 'Generating MIDI...';
-            console.log('Generating MIDI...');
+        status.innerText = "Generating MIDI...";
+        console.log("Generating MIDI...");
 
-            try {
-                midiChords = new Midi();
-                midiMelody = new Midi();
-                const chordsTrack = midiChords.addTrack();
-                const melodyTrack = midiMelody.addTrack();
+        try {
+          midiChords = new Midi();
+          midiMelody = new Midi();
+          const chordsTrack = midiChords.addTrack();
+          const melodyTrack = midiMelody.addTrack();
 
-                const beatsPerBar = 4;
-                const totalBars = 16;
-                const totalBeats = totalBars * beatsPerBar;
+          const beatsPerBar = 4;
+          const totalBars = 16;
+          const totalBeats = totalBars * beatsPerBar;
 
-                chordsData = [];
-                for (let i = 0; i < totalBars; i++) {
-                    let chord;
-                    do {
-                        chord = getRandomChord(key, scaleType, noteAmount, spread);
-                    } while (i > 0 && JSON.stringify(chord) === JSON.stringify(chordsData[i - 1]));
-                    chordsData.push(chord);
-                }
+          chordsData = [];
+          for (let i = 0; i < totalBars; i++) {
+            let chord;
+            do {
+              chord = getRandomChord(key, scaleType, noteAmount, spread);
+            } while (
+              i > 0 &&
+              JSON.stringify(chord) === JSON.stringify(chordsData[i - 1])
+            );
+            chordsData.push(chord);
+          }
 
-                chordsData.forEach((chord, index) => {
-                    chord.forEach(note => {
-                        chordsTrack.addNote({
-                            midi: note,
-                            time: index * beatsPerBar,
-                            duration: beatsPerBar,
-                            velocity: 0.8
-                        });
-                    });
-                });
-
-                const getMelodyNotesInKey = (root, scaleType) => {
-                    return scales[root][scaleType];
-                };
-
-                melody = [];
-                if (melodyOverlay === "yes") {
-                    const melodyNotesInKey = getMelodyNotesInKey(key, scaleType);
-                    const totalMelodyNotes = Math.floor(totalBeats / (1 - melodySpeed)); // Calculate number of melody notes based on speed
-                    const durationOptions = [0.5, 0.25];
-
-                    let currentTime = 0;
-                    while (currentTime < totalBeats) {
-                        let note;
-                        if (Math.random() < 0.7) {
-                            const currentChordIndex = Math.floor(currentTime / beatsPerBar);
-                            const currentChord = chordsData[currentChordIndex];
-                            if (currentChord && currentChord.length > 0) {
-                                note = currentChord[Math.floor(Math.random() * currentChord.length)];
-                            } else {
-                                note = melodyNotesInKey[Math.floor(Math.random() * melodyNotesInKey.length)];
-                            }
-                        } else {
-                            note = melodyNotesInKey[Math.floor(Math.random() * melodyNotesInKey.length)];
-                        }
-                        const duration = durationOptions[Math.floor(Math.random() * durationOptions.length)];
-
-                        // Randomize the time increment to create a groove
-                        const minTimeIncrement = (1 - melodySpeed) * 4; // Invert melodySpeed for slower to faster
-                        const maxTimeIncrement = minTimeIncrement + 2; // Ensure it fits within reasonable range
-                        const timeIncrement = Math.max(0.1, (Math.random() * (maxTimeIncrement - minTimeIncrement) + minTimeIncrement) * melodyVariation); // Ensure reasonable bounds
-
-                        if (currentTime + duration <= totalBeats) { // Ensure the note fits within the loop
-                            melody.push({
-                                midi: note,
-                                time: currentTime,
-                                duration: duration,
-                                velocity: 1
-                            });
-                            currentTime += timeIncrement;
-                        } else {
-                            break; // Stop if the next note exceeds the total beats
-                        }
-                    }
-
-                    melody.forEach(note => {
-                        melodyTrack.addNote(note);
-                    });
-                }
-
-                const midiChordsBlob = new Blob([new Uint8Array(midiChords.toArray())], { type: 'audio/midi' });
-                downloadLinkChords.href = URL.createObjectURL(midiChordsBlob);
-                downloadLinkChords.style.display = 'block';
-
-                const midiMelodyBlob = new Blob([new Uint8Array(midiMelody.toArray())], { type: 'audio/midi' });
-                downloadLinkMelody.href = URL.createObjectURL(midiMelodyBlob);
-                downloadLinkMelody.style.display = 'block';
-
-                status.innerText = 'MIDI generation complete. Click the links to download your files.';
-                midiDisplay.style.display = 'block';
-                playBtn.style.display = 'block';
-                playBtn.innerText = 'Play';
-                console.log('MIDI generation complete.');
-
-                updateMIDIDisplay();
-            } catch (error) {
-                status.innerText = `Error generating MIDI: ${error.message}`;
-                console.error('Error generating MIDI:', error);
-            }
-        }
-
-        async function togglePlayback() {
-            if (Tone.context.state !== 'running') {
-                await Tone.start();
-            }
-
-            if (activePreview) {
-                activePreview.stop();
-                activePreview.dispose();
-                activePreview = null;
-                Tone.Transport.stop();
-                Tone.Transport.cancel();
-                clearInterval(playheadInterval);
-                document.getElementById('playBtn').innerText = 'Play';
-            } else {
-                if (activePreview) {
-                    activePreview.stop();
-                    activePreview.dispose();
-                    activePreview = null;
-                }
-                Tone.Transport.stop();
-                Tone.Transport.cancel();
-                clearInterval(playheadInterval);
-
-                const piano = new Tone.Sampler({
-                    urls: {
-                        "C5": "c4.mp3",
-                    },
-                    baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
-                }).toDestination();
-                const flute = new Tone.Sampler({
-                    urls: {
-                        "C4": "c2.mp3",
-                    },
-                    baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
-                }).toDestination();
-
-                await Tone.loaded();
-                const now = Tone.now();
-
-                activePreview = new Tone.Part((time, note) => {
-                    if (note.type === 'chord') {
-                        piano.triggerAttackRelease(Tone.Midi(note.midi).toFrequency(), note.duration, time);
-                    } else {
-                        flute.triggerAttackRelease(Tone.Midi(note.midi).toFrequency(), note.duration, time);
-                    }
-                }, []);
-
-                chordsData.forEach((chord, index) => {
-                    chord.forEach(note => {
-                        activePreview.add(now + index * 4, {
-                            midi: note - 12,
-                            duration: "1m",
-                            type: 'chord'
-                        });
-                    });
-                });
-
-                if (document.getElementById('melodyOverlay').value === 'yes') {
-                    melody.forEach(note => {
-                        activePreview.add(now + note.time, {
-                            midi: note.midi,
-                            duration: note.duration,
-                            type: 'melody'
-                        });
-                    });
-                }
-
-                activePreview.start(now);
-                Tone.Transport.start();
-
-                const playhead = document.querySelector('.playhead');
-                const duration = 64; // Adjusted to match 16 bars
-                let startTime = Date.now();
-
-                playheadInterval = setInterval(() => {
-                    const elapsed = (Date.now() - startTime) / 1000;
-                    const progress = elapsed / duration;
-                    playhead.style.left = `${progress * 100}%`;
-
-                    if (progress >= 1) {
-                        clearInterval(playheadInterval);
-                        playhead.style.left = '0%';
-                    }
-                }, 30);
-
-                document.getElementById('playBtn').innerText = 'Stop';
-            }
-        }
-
-        function updateMIDIDisplay() {
-            const midiDisplay = document.getElementById('midiDisplay');
-            midiDisplay.innerHTML = '<div class="playhead"></div>'; 
-
-            const noteHeight = midiDisplay.clientHeight / 128;
-            const totalBars = 16; // Adjusted to 16 bars
-            const beatsPerBar = 4;
-            const totalBeats = totalBars * beatsPerBar;
-
-            chordsData.forEach((chord, bar) => {
-                chord.forEach(note => {
-                    const noteDiv = document.createElement('div');
-                    noteDiv.classList.add('note');
-                    noteDiv.style.left = `${(bar * beatsPerBar) / totalBeats * 100}%`;
-                    noteDiv.style.top = `${(127 - note) * noteHeight}px`;
-                    noteDiv.style.width = `${beatsPerBar / totalBeats * 100}%`;
-                    noteDiv.style.height = `${noteHeight}px`;
-                    midiDisplay.appendChild(noteDiv);
-                });
+          chordsData.forEach((chord, index) => {
+            chord.forEach((note) => {
+              chordsTrack.addNote({
+                midi: note,
+                time: index * beatsPerBar,
+                duration: beatsPerBar,
+                velocity: 0.8,
+              });
             });
+          });
 
-            melody.forEach(note => {
-                const noteDiv = document.createElement('div');
-                noteDiv.classList.add('note');
-                noteDiv.style.left = `${note.time / totalBeats * 100}%`;
-                noteDiv.style.top = `${(127 - note.midi) * noteHeight}px`;
-                noteDiv.style.width = `${note.duration / totalBeats * 100}%`;
-                noteDiv.style.height = `${noteHeight}px`;
-                noteDiv.style.backgroundColor = '#44ff44';
-                midiDisplay.appendChild(noteDiv);
+          const getMelodyNotesInKey = (root, scaleType) => {
+            return scales[root][scaleType];
+          };
+
+          melody = [];
+          if (melodyOverlay === "yes") {
+            const melodyNotesInKey = getMelodyNotesInKey(key, scaleType);
+            const totalMelodyNotes = Math.floor(totalBeats / (1 - melodySpeed)); // Calculate number of melody notes based on speed
+            const durationOptions = [0.5, 0.25];
+
+            let currentTime = 0;
+            while (currentTime < totalBeats) {
+              let note;
+              if (Math.random() < 0.7) {
+                const currentChordIndex = Math.floor(currentTime / beatsPerBar);
+                const currentChord = chordsData[currentChordIndex];
+                if (currentChord && currentChord.length > 0) {
+                  note =
+                    currentChord[
+                      Math.floor(Math.random() * currentChord.length)
+                    ];
+                } else {
+                  note =
+                    melodyNotesInKey[
+                      Math.floor(Math.random() * melodyNotesInKey.length)
+                    ];
+                }
+              } else {
+                note =
+                  melodyNotesInKey[
+                    Math.floor(Math.random() * melodyNotesInKey.length)
+                  ];
+              }
+              const duration =
+                durationOptions[
+                  Math.floor(Math.random() * durationOptions.length)
+                ];
+
+              // Randomize the time increment to create a groove
+              const minTimeIncrement = (1 - melodySpeed) * 4; // Invert melodySpeed for slower to faster
+              const maxTimeIncrement = minTimeIncrement + 2; // Ensure it fits within reasonable range
+              const timeIncrement = Math.max(
+                0.1,
+                (Math.random() * (maxTimeIncrement - minTimeIncrement) +
+                  minTimeIncrement) *
+                  melodyVariation
+              ); // Ensure reasonable bounds
+
+              if (currentTime + duration <= totalBeats) {
+                // Ensure the note fits within the loop
+                melody.push({
+                  midi: note,
+                  time: currentTime,
+                  duration: duration,
+                  velocity: 1,
+                });
+                currentTime += timeIncrement;
+              } else {
+                break; // Stop if the next note exceeds the total beats
+              }
+            }
+
+            melody.forEach((note) => {
+              melodyTrack.addNote(note);
             });
+          }
+
+          const midiChordsBlob = new Blob(
+            [new Uint8Array(midiChords.toArray())],
+            { type: "audio/midi" }
+          );
+          downloadLinkChords.href = URL.createObjectURL(midiChordsBlob);
+          downloadLinkChords.style.display = "block";
+
+          const midiMelodyBlob = new Blob(
+            [new Uint8Array(midiMelody.toArray())],
+            { type: "audio/midi" }
+          );
+          downloadLinkMelody.href = URL.createObjectURL(midiMelodyBlob);
+          downloadLinkMelody.style.display = "block";
+
+          status.innerText =
+            "MIDI generation complete. Click the links to download your files.";
+          midiDisplay.style.display = "block";
+          playBtn.style.display = "block";
+          playBtn.innerText = "Play";
+          console.log("MIDI generation complete.");
+
+          updateMIDIDisplay();
+        } catch (error) {
+          status.innerText = `Error generating MIDI: ${error.message}`;
+          console.error("Error generating MIDI:", error);
         }
+      }
+
+      async function togglePlayback() {
+        //docs: https://tonejs.github.io/docs/14.8.35/
+        console.log(activePreview);
+        console.log(Tone.context.state);
+        if (Tone.context.state !== "running") {
+          await Tone.start();
+        }
+
+        // if there is an active preview this means that we have started the midi playback and we need to stop
+        if (activePreview) {
+          activePreview.stop();
+          activePreview.dispose();
+
+          // this removes the stop functionality
+          activePreview = null;
+          Tone.Transport.stop();
+          Tone.Transport.cancel();
+          // we need to somehow reset the state to suspeneded
+
+          // this resets the playhead to the start
+          clearInterval(playheadInterval);
+          document.getElementById("playBtn").innerText = "Play";
+        }
+        // if an active preview is not set (when first hitting play, or restarting)
+        else {
+          Tone.Transport.stop();
+          Tone.Transport.cancel();
+          clearInterval(playheadInterval);
+
+          const piano = new Tone.Sampler({
+            urls: {
+              C5: "c4.mp3",
+            },
+            baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
+          }).toDestination();
+          const flute = new Tone.Sampler({
+            urls: {
+              C4: "c2.mp3",
+            },
+            baseUrl: "https://storage.googleapis.com/my_bucket_fjc123/",
+          }).toDestination();
+
+          await Tone.loaded();
+          const now = Tone.now();
+          activePreview = new Tone.Part((time, note) => {
+            if (note.type === "chord") {
+              piano.triggerAttackRelease(
+                Tone.Midi(note.midi).toFrequency(),
+                note.duration,
+                time
+              );
+            } else {
+              flute.triggerAttackRelease(
+                Tone.Midi(note.midi).toFrequency(),
+                note.duration,
+                time
+              );
+            }
+          }, []);
+
+          chordsData.forEach((chord, index) => {
+            chord.forEach((note) => {
+              activePreview.add(now + index * 4, {
+                midi: note - 12,
+                duration: "1m",
+                type: "chord",
+              });
+            });
+          });
+
+          if (document.getElementById("melodyOverlay").value === "yes") {
+            melody.forEach((note) => {
+              activePreview.add(now + note.time, {
+                midi: note.midi,
+                duration: note.duration,
+                type: "melody",
+              });
+            });
+          }
+
+          activePreview.start(now);
+          Tone.Transport.start();
+
+          const playhead = document.querySelector(".playhead");
+          const duration = 64; // Adjusted to match 16 bars
+          let startTime = Date.now();
+
+          playheadInterval = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const progress = elapsed / duration;
+            playhead.style.left = `${progress * 100}%`;
+
+            if (progress >= 1) {
+              clearInterval(playheadInterval);
+              playhead.style.left = "0%";
+            }
+          }, 30);
+
+          document.getElementById("playBtn").innerText = "Stop";
+        }
+      }
+
+      function updateMIDIDisplay() {
+        const midiDisplay = document.getElementById("midiDisplay");
+        midiDisplay.innerHTML = '<div class="playhead"></div>';
+
+        const noteHeight = midiDisplay.clientHeight / 128;
+        const totalBars = 16; // Adjusted to 16 bars
+        const beatsPerBar = 4;
+        const totalBeats = totalBars * beatsPerBar;
+
+        chordsData.forEach((chord, bar) => {
+          chord.forEach((note) => {
+            const noteDiv = document.createElement("div");
+            noteDiv.classList.add("note");
+            noteDiv.style.left = `${((bar * beatsPerBar) / totalBeats) * 100}%`;
+            noteDiv.style.top = `${(127 - note) * noteHeight}px`;
+            noteDiv.style.width = `${(beatsPerBar / totalBeats) * 100}%`;
+            noteDiv.style.height = `${noteHeight}px`;
+            midiDisplay.appendChild(noteDiv);
+          });
+        });
+
+        melody.forEach((note) => {
+          const noteDiv = document.createElement("div");
+          noteDiv.classList.add("note");
+          noteDiv.style.left = `${(note.time / totalBeats) * 100}%`;
+          noteDiv.style.top = `${(127 - note.midi) * noteHeight}px`;
+          noteDiv.style.width = `${(note.duration / totalBeats) * 100}%`;
+          noteDiv.style.height = `${noteHeight}px`;
+          noteDiv.style.backgroundColor = "#44ff44";
+          midiDisplay.appendChild(noteDiv);
+        });
+      }
     </script>
-    
-</body>
+  </body>
 </html>
