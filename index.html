@@ -195,6 +195,7 @@
       }
 
       function generateMIDI() {
+        isMidiAddedToCollection = false;
         const key = document.getElementById("key").value;
         const scaleType = document.getElementById("scaleType").value;
         const noteAmount = parseInt(
@@ -361,32 +362,44 @@
           );
         }
       }, []);
+      let isMidiAddedToCollection = false;
 
       async function togglePlayback() {
         //docs: https://tonejs.github.io/docs/14.8.35/
         await Tone.loaded();
         await Tone.start();
 
+        // if the collection has started
         if (collection.state === "started") {
           collection.stop();
+
+          // i feel like this function will help us create a new collection
+          // collection.dispose()
           Tone.Transport.cancel();
           // this resets the playhead to the start
           const playhead = document.querySelector(".playhead");
           playhead.style.left = "0%";
           clearInterval(playheadInterval);
           document.getElementById("playBtn").innerText = "Play";
-        } else {
+        }
+        // if the collection has stopped / hasnt started yet
+        else {
           const now = Tone.now();
-          chordsData.forEach((chord, index) => {
-            chord.forEach((note) => {
-              collection.add(now + index * 4, {
-                midi: note - 12,
-                duration: "1m",
-                type: "chord",
+          // if the collection hasnt had the midi notes added yet add it to the collection
+          if (!isMidiAddedToCollection) {
+            chordsData.forEach((chord, index) => {
+              chord.forEach((note) => {
+                collection.add(now + index * 4, {
+                  midi: note - 12,
+                  duration: "1m",
+                  type: "chord",
+                });
               });
             });
-          });
+            isMidiAddedToCollection = true;
+          }
 
+          // otherwise dont load the chords since it will combine the previous notes
           if (document.getElementById("melodyOverlay").value === "yes") {
             melody.forEach((note) => {
               collection.add(now + note.time, {
